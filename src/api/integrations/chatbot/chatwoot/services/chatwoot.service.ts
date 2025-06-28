@@ -2569,8 +2569,9 @@ export class ChatwootService {
 
   private isRealUserMessage(webhookBody: any): boolean {
     const message = webhookBody?.conversation?.messages?.[0];
-    
-    // Verificação principal: sender_type (baseado nos payloads que você mostrou)
+  }
+  
+  // Verificação principal: sender_type (baseado nos payloads que você mostrou)
     if (message?.sender_type === 'User') return true;
     if (message?.sender_type === 'AgentBot') return false;
     
