@@ -7,6 +7,7 @@ export class ChatwootDto {
   url?: string;
   nameInbox?: string;
   signMsg?: boolean;
+  signMsgUserOnly?: boolean; // 🆕 NOVA FUNCIONALIDADE
   signDelimiter?: string;
   number?: string;
   reopenConversation?: boolean;
@@ -27,6 +28,7 @@ export function ChatwootInstanceMixin<TBase extends Constructor>(Base: TBase) {
     chatwootToken?: string;
     chatwootUrl?: string;
     chatwootSignMsg?: boolean;
+    chatwootSignMsgUserOnly?: boolean; // 🆕 NOVA FUNCIONALIDADE
     chatwootReopenConversation?: boolean;
     chatwootConversationPending?: boolean;
     chatwootMergeBrazilContacts?: boolean;
