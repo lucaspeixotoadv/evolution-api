@@ -35,6 +35,12 @@ export class ChatwootController {
       if (data.signMsg !== true && data.signMsg !== false) {
         throw new BadRequestException('signMsg is required');
       }
+
+      // 🆕 NOVA VALIDAÇÃO
+      if (data.signMsgUserOnly && !data.signMsg) {
+        throw new BadRequestException('signMsg must be enabled when using signMsgUserOnly');
+      }
+
       if (data.signMsg === false) data.signDelimiter = null;
     }
 
@@ -43,7 +49,6 @@ export class ChatwootController {
     }
 
     const result = await this.chatwootService.create(instance, data);
-
     const urlServer = this.configService.get<HttpServer>('SERVER').URL;
 
     const response = {
@@ -58,7 +63,6 @@ export class ChatwootController {
     if (!this.configService.get<Chatwoot>('CHATWOOT').ENABLED) throw new BadRequestException('Chatwoot is disabled');
 
     const result = await this.chatwootService.find(instance);
-
     const urlServer = this.configService.get<HttpServer>('SERVER').URL;
 
     if (Object.keys(result || {}).length === 0) {
