@@ -29,6 +29,7 @@ export const chatwootSchema: JSONSchema7 = {
     token: { type: 'string' },
     url: { type: 'string' },
     signMsg: { type: 'boolean', enum: [true, false] },
+    signMsgUserOnly: { type: 'boolean', enum: [true, false] }, // 🆕 NOVA FUNCIONALIDADE
     signDelimiter: { type: ['string', 'null'] },
     nameInbox: { type: ['string', 'null'] },
     reopenConversation: { type: 'boolean', enum: [true, false] },
