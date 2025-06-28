@@ -2582,4 +2582,5 @@ export class ChatwootService {
     // Fallback: se não conseguir determinar, considera como usuário
     return true;
   }
- }
+
+}
