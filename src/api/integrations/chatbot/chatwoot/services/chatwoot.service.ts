@@ -60,7 +60,7 @@ export class ChatwootService {
       const provider = (await this.cache.get(cacheKey)) as ChatwootModel;
 
       return provider;
-    }
+  }
 
     const provider = await this.waMonitor.waInstances[instance.instanceName]?.findChatwoot();
 
@@ -1363,7 +1363,10 @@ export class ChatwootService {
           const formattedDelimiter = this.provider.signDelimiter
             ? this.provider.signDelimiter.replaceAll('\\n', '\n')
             : '\n';
-          const textToConcat = this.provider.signMsg ? [`*${senderName}:*`] : [];
+          
+          // 🆕 NOVA LÓGICA - Substitui a linha original
+          const shouldSign = this.shouldSignMessage(body, this.provider);
+          const textToConcat = shouldSign ? [`*${senderName}:*`] : [];
           textToConcat.push(messageReceived);
 
           formatText = textToConcat.join(formattedDelimiter);
@@ -2551,4 +2554,30 @@ export class ChatwootService {
       return;
     }
   }
-}
+
+  // 🆕 ADICIONAR MÉTODOS HELPER
+  private shouldSignMessage(webhookBody: any, provider: any): boolean {
+    // Se signMsg está desabilitado, não assina
+    if (!provider.signMsg) return false;
+    
+    // Se signMsgUserOnly não está habilitado, assina tudo (comportamento atual)
+    if (!provider.signMsgUserOnly) return true;
+    
+    // Se signMsgUserOnly está habilitado, verificar se é usuário real
+    return this.isRealUserMessage(webhookBody);
+  }
+
+  private isRealUserMessage(webhookBody: any): boolean {
+    const message = webhookBody?.conversation?.messages?.[0];
+    
+    // Verificação principal: sender_type (baseado nos payloads que você mostrou)
+    if (message?.sender_type === 'User') return true;
+    if (message?.sender_type === 'AgentBot') return false;
+    
+    // Verificação secundária: sender.type
+    if (message?.sender?.type === 'user') return true;
+    if (message?.sender?.type === 'agent_bot') return false;
+    
+    // Fallback: se não conseguir determinar, considera como usuário
+    return true;
+  }
