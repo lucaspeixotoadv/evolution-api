@@ -219,6 +219,7 @@ model Chatwoot {
   url                     String?   @db.VarChar(500)
   nameInbox               String?   @db.VarChar(100)
   signMsg                 Boolean?  @default(false) @db.Boolean
+  signMsgUserOnly         Boolean?  @default(false) @db.Boolean  // 🆕 NOVA FUNCIONALIDADE
   signDelimiter           String?   @db.VarChar(100)
   number                  String?   @db.VarChar(100)
   reopenConversation      Boolean?  @default(false) @db.Boolean
