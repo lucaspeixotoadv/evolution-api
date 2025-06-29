@@ -2555,34 +2555,58 @@ export class ChatwootService {
     }
   }
 
-  // 🆕 ADICIONAR MÉTODOS HELPER
-  private shouldSignMessage(webhookBody: any, provider: any): boolean {
-    // Se signMsg está desabilitado, não assina
-    if (!provider.signMsg) return false;
-    
-    // Se signMsgUserOnly não está habilitado, assina tudo (comportamento atual)
-    if (!provider.signMsgUserOnly) return true;
-    
-    // Se signMsgUserOnly está habilitado, verificar se é usuário real
-    return this.isRealUserMessage(webhookBody);
-  }
+ // 🆕 ADICIONAR MÉTODOS HELPER
+private shouldSignMessage(webhookBody: any, provider: any): boolean {
+  // Se signMsg está desabilitado, não assina
+  if (!provider.signMsg) return false;
+  
+  // Se signMsgUserOnly não está habilitado, assina tudo (comportamento atual)
+  if (!provider.signMsgUserOnly) return true;
+  
+  // Se signMsgUserOnly está habilitado, verificar se é usuário real
+  return this.isRealUserMessage(webhookBody);
+}
 
-  private isRealUserMessage(webhookBody: any): boolean {
+private isRealUserMessage(webhookBody: any): boolean {
   const message = webhookBody?.conversation?.messages?.[0];
   
+  console.log('=== DEBUG SIGN MESSAGE ===');
+  console.log('Message sender:', JSON.stringify(message?.sender, null, 2));
+  console.log('Sender type:', message?.sender?.type);
+  console.log('Full webhookBody:', JSON.stringify(webhookBody, null, 2));
+  
   // 🆕 VERIFICAÇÃO PRINCIPAL - baseado no seu payload real
-  if (message?.sender?.type === 'agent_bot') return false;
-  if (message?.sender?.type === 'user') return true;
+  if (message?.sender?.type === 'agent_bot') {
+    console.log('Detected agent_bot - NOT SIGNING');
+    return false;
+  }
+  if (message?.sender?.type === 'user') {
+    console.log('Detected user - SIGNING');
+    return true;
+  }
   
   // 🔄 VERIFICAÇÃO SECUNDÁRIA - casos alternativos
-  if (message?.sender_type === 'AgentBot') return false;
-  if (message?.sender_type === 'User') return true;
+  if (message?.sender_type === 'AgentBot') {
+    console.log('Detected AgentBot - NOT SIGNING');
+    return false;
+  }
+  if (message?.sender_type === 'User') {
+    console.log('Detected User - SIGNING');
+    return true;
+  }
   
   // 🔄 VERIFICAÇÃO TERCIÁRIA - outros formatos possíveis
-  if (message?.sender_type === 'agent_bot') return false;
-  if (message?.sender_type === 'user') return true;
+  if (message?.sender_type === 'agent_bot') {
+    console.log('Detected agent_bot (alt) - NOT SIGNING');
+    return false;
+  }
+  if (message?.sender_type === 'user') {
+    console.log('Detected user (alt) - SIGNING');
+    return true;
+  }
   
   // 🛡️ FALLBACK - se não conseguir determinar, assume usuário
+  console.log('Fallback - SIGNING by default');
   return true;
 }
-} 
+}
