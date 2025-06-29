@@ -2568,17 +2568,20 @@ export class ChatwootService {
   }
 
   private isRealUserMessage(webhookBody: any): boolean {
-    const message = webhookBody?.conversation?.messages?.[0];
-    
-    // Verificação principal: sender_type (baseado nos payloads que você mostrou)
-    if (message?.sender_type === 'User') return true;
-    if (message?.sender_type === 'AgentBot') return false;
-    
-    // Verificação secundária: sender.type
-    if (message?.sender?.type === 'user') return true;
-    if (message?.sender?.type === 'agent_bot') return false;
-    
-    // Fallback: se não conseguir determinar, considera como usuário
-    return true;
-  }
+  const message = webhookBody?.conversation?.messages?.[0];
+  
+  // 🆕 VERIFICAÇÃO PRINCIPAL - baseado no seu payload real
+  if (message?.sender?.type === 'agent_bot') return false;
+  if (message?.sender?.type === 'user') return true;
+  
+  // 🔄 VERIFICAÇÃO SECUNDÁRIA - casos alternativos
+  if (message?.sender_type === 'AgentBot') return false;
+  if (message?.sender_type === 'User') return true;
+  
+  // 🔄 VERIFICAÇÃO TERCIÁRIA - outros formatos possíveis
+  if (message?.sender_type === 'agent_bot') return false;
+  if (message?.sender_type === 'user') return true;
+  
+  // 🛡️ FALLBACK - se não conseguir determinar, assume usuário
+  return true;
 }
