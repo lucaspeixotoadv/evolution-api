@@ -2585,3 +2585,4 @@ export class ChatwootService {
   // 🛡️ FALLBACK - se não conseguir determinar, assume usuário
   return true;
 }
+} 
