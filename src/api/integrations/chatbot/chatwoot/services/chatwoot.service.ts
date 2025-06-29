@@ -1363,6 +1363,187 @@ export class ChatwootService {
           const formattedDelimiter = this.provider.signDelimiter
             ? this.provider.signDelimiter.replaceAll('\\n', '\n')
             : '\n';
+          public async receiveWebhook(instance: InstanceDto, body: any) {
+    try {
+      // 🆕 ADICIONAR AQUI - LOGO NO INÍCIO
+      console.log('=== WEBHOOK EVOLUTION API ===');
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('Full body received:', JSON.stringify(body, null, 2));
+      console.log('body.event:', body.event);
+      console.log('body.message_type:', body.message_type);
+      console.log('body.sender_type:', body.sender_type);
+      console.log('body.sender:', JSON.stringify(body.sender, null, 2));
+      console.log('body.messages length:', body?.messages?.length);
+      if (body.messages && body.messages.length > 0) {
+        console.log('body.messages[0].sender_type:', body.messages[0].sender_type);
+        console.log('body.messages[0].sender:', JSON.stringify(body.messages[0].sender, null, 2));
+      }
+      console.log('=== FIM WEBHOOK ===');
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const client = await this.clientCw(instance);
+
+      if (!client) {
+        this.logger.warn('client not found');
+        return null;
+      }
+
+      // 🆕 ADICIONAR AQUI
+      console.log('=== PROVIDER CONFIG ===');
+      console.log('signMsg:', this.provider.signMsg);
+      console.log('signMsgUserOnly:', this.provider.signMsgUserOnly);
+      console.log('nameInbox:', this.provider.nameInbox);
+      console.log('signDelimiter:', this.provider.signDelimiter);
+      console.log('=== FIM PROVIDER ===');
+
+      if (
+        this.provider.reopenConversation === false &&
+        body.event === 'conversation_status_changed' &&
+        body.status === 'resolved' &&
+        body.meta?.sender?.identifier
+      ) {
+        const keyToDelete = `${instance.instanceName}:createConversation-${body.meta.sender.identifier}`;
+        this.cache.delete(keyToDelete);
+      }
+
+      if (
+        !body?.conversation ||
+        body.private ||
+        (body.event === 'message_updated' && !body.content_attributes?.deleted)
+      ) {
+        return { message: 'bot' };
+      }
+
+      const chatId =
+        body.conversation.meta.sender?.identifier || body.conversation.meta.sender?.phone_number.replace('+', '');
+      // Chatwoot to Whatsapp
+      const messageReceived = body.content
+        ? body.content
+            .replaceAll(/(?<!\*)\*((?!\s)([^\n*]+?)(?<!\s))\*(?!\*)/g, '_$1_') // Substitui * por _
+            .replaceAll(/\*{2}((?!\s)([^\n*]+?)(?<!\s))\*{2}/g, '*$1*') // Substitui ** por *
+            .replaceAll(/~{2}((?!\s)([^\n*]+?)(?<!\s))~{2}/g, '~$1~') // Substitui ~~ por ~
+            .replaceAll(/(?<!`)`((?!\s)([^`*]+?)(?<!\s))`(?!`)/g, '```$1```') // Substitui ` por ```
+        : body.content;
+
+      const senderName = body?.conversation?.messages[0]?.sender?.available_name || body?.sender?.name;
+      const waInstance = this.waMonitor.waInstances[instance.instanceName];
+
+      if (body.event === 'message_updated' && body.content_attributes?.deleted) {
+        const message = await this.prismaRepository.message.findFirst({
+          where: {
+            chatwootMessageId: body.id,
+            instanceId: instance.instanceId,
+          },
+        });
+
+        if (message) {
+          const key = message.key as {
+            id: string;
+            remoteJid: string;
+            fromMe: boolean;
+            participant: string;
+          };
+
+          await waInstance?.client.sendMessage(key.remoteJid, { delete: key });
+
+          await this.prismaRepository.message.deleteMany({
+            where: {
+              instanceId: instance.instanceId,
+              chatwootMessageId: body.id,
+            },
+          });
+        }
+        return { message: 'bot' };
+      }
+
+      const cwBotContact = this.configService.get<Chatwoot>('CHATWOOT').BOT_CONTACT;
+
+      if (chatId === '123456' && body.message_type === 'outgoing') {
+        const command = messageReceived.replace('/', '');
+
+        if (cwBotContact && (command.includes('init') || command.includes('iniciar'))) {
+          const state = waInstance?.connectionStatus?.state;
+
+          if (state !== 'open') {
+            const number = command.split(':')[1];
+            await waInstance.connectToWhatsapp(number);
+          } else {
+            await this.createBotMessage(
+              instance,
+              i18next.t('cw.inbox.alreadyConnected', {
+                inboxName: body.inbox.name,
+              }),
+              'incoming',
+            );
+          }
+        }
+
+        if (command === 'clearcache') {
+          waInstance.clearCacheChatwoot();
+          await this.createBotMessage(
+            instance,
+            i18next.t('cw.inbox.clearCache', {
+              inboxName: body.inbox.name,
+            }),
+            'incoming',
+          );
+        }
+
+        if (command === 'status') {
+          const state = waInstance?.connectionStatus?.state;
+
+          if (!state) {
+            await this.createBotMessage(
+              instance,
+              i18next.t('cw.inbox.notFound', {
+                inboxName: body.inbox.name,
+              }),
+              'incoming',
+            );
+          }
+
+          if (state) {
+            await this.createBotMessage(
+              instance,
+              i18next.t('cw.inbox.status', {
+                inboxName: body.inbox.name,
+                state: state,
+              }),
+              'incoming',
+            );
+          }
+        }
+
+        if (cwBotContact && (command === 'disconnect' || command === 'desconectar')) {
+          const msgLogout = i18next.t('cw.inbox.disconnect', {
+            inboxName: body.inbox.name,
+          });
+
+          await this.createBotMessage(instance, msgLogout, 'incoming');
+
+          await waInstance?.client?.logout('Log out instance: ' + instance.instanceName);
+          await waInstance?.client?.ws?.close();
+        }
+      }
+
+      if (body.message_type === 'outgoing' && body?.conversation?.messages?.length && chatId !== '123456') {
+        if (body?.conversation?.messages[0]?.source_id?.substring(0, 5) === 'WAID:') {
+          return { message: 'bot' };
+        }
+
+        if (!waInstance && body.conversation?.id) {
+          this.onSendMessageError(instance, body.conversation?.id, 'Instance not found');
+          return { message: 'bot' };
+        }
+
+        let formatText: string;
+        if (senderName === null || senderName === undefined) {
+          formatText = messageReceived;
+        } else {
+          const formattedDelimiter = this.provider.signDelimiter
+            ? this.provider.signDelimiter.replaceAll('\\n', '\n')
+            : '\n';
           
           // 🆕 NOVA LÓGICA - Substitui a linha original
           const shouldSign = this.shouldSignMessage(body, this.provider);
